@@ -1,0 +1,5 @@
+.dockerignore
+.env
+.env.sample
+.venv
+__pycache__/

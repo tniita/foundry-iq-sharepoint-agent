@@ -1,0 +1,156 @@
+@search-url = https://{{$dotenv AZURE_SEARCH_SERVICE_NAME}}.search.windows.net
+@search-api-key = {{$dotenv AZURE_SEARCH_API_KEY}}
+@api-version = 2025-11-01-preview
+
+@indexed-knowledge-source-name = sharepoint-indexed-ks
+@remote-knowledge-source-name = sharepoint-remote-ks
+@knowledge-base-name = sharepoint-kb
+
+@sharepoint-connection-string = SharePointOnlineEndpoint=https://contoso.sharepoint.com/sites/Engineering;ApplicationId={{$dotenv AZURE_CLIENT_ID}};ApplicationSecret={{$dotenv AZURE_CLIENT_SECRET}};TenantId={{$dotenv AZURE_TENANT_ID}}
+@indexed-container-name = defaultSiteLibrary
+@indexed-query = Path:"https://contoso.sharepoint.com/sites/Engineering/Shared Documents"
+
+@remote-filter-expression = Path:"https://contoso.sharepoint.com/sites/Engineering/Shared Documents" OR FileExtension:"pdf" OR FileExtension:"docx"
+
+@aoai-resource-uri = https://{{$dotenv AZURE_OPENAI_RESOURCE_NAME}}.openai.azure.com/
+@aoai-deployment-id = {{$dotenv AZURE_AI_MODEL_DEPLOYMENT_NAME}}
+@aoai-api-key = {{$dotenv AZURE_OPENAI_API_KEY}}
+@aoai-model-name = gpt-4o
+
+###
+# SharePoint indexed / remote knowledge source creation for Foundry IQ.
+#
+# Before running:
+# 1. Replace the contoso SharePoint URLs with your real site and library.
+# 2. If you use RBAC instead of API keys, remove api-key and send Authorization: Bearer {{access-token}}.
+# 3. Remote SharePoint requires a delegated user identity at retrieval time.
+# 4. Indexed SharePoint creates an indexer, index, skillset, and data source automatically.
+
+### List existing knowledge sources
+GET {{search-url}}/knowledgesources?api-version={{api-version}}&$select=name,kind
+Content-Type: application/json
+api-key: {{search-api-key}}
+
+### Create or update indexed SharePoint knowledge source
+PUT {{search-url}}/knowledgesources('{{indexed-knowledge-source-name}}')?api-version={{api-version}}
+Content-Type: application/json
+Prefer: return=representation
+api-key: {{search-api-key}}
+
+{
+  "name": "{{indexed-knowledge-source-name}}",
+  "kind": "indexedSharePoint",
+  "description": "Indexed SharePoint knowledge source for the Foundry IQ SharePoint agent.",
+  "indexedSharePointParameters": {
+    "connectionString": "{{sharepoint-connection-string}}",
+    "containerName": "{{indexed-container-name}}",
+    "query": "{{indexed-query}}",
+    "ingestionParameters": {
+      "disableImageVerbalization": false,
+      "contentExtractionMode": "standard",
+      "chatCompletionModel": {
+        "kind": "azureOpenAI",
+        "azureOpenAIParameters": {
+          "deploymentId": "{{aoai-deployment-id}}",
+          "resourceUri": "{{aoai-resource-uri}}",
+          "apiKey": "{{aoai-api-key}}",
+          "modelName": "{{aoai-model-name}}"
+        }
+      }
+    }
+  }
+}
+
+### Get indexed SharePoint knowledge source definition
+GET {{search-url}}/knowledgesources('{{indexed-knowledge-source-name}}')?api-version={{api-version}}
+Content-Type: application/json
+api-key: {{search-api-key}}
+
+### Check indexed SharePoint ingestion status
+GET {{search-url}}/knowledgesources('{{indexed-knowledge-source-name}}')/status?api-version={{api-version}}
+Content-Type: application/json
+api-key: {{search-api-key}}
+
+### Create or update remote SharePoint knowledge source
+PUT {{search-url}}/knowledgesources('{{remote-knowledge-source-name}}')?api-version={{api-version}}
+Content-Type: application/json
+Prefer: return=representation
+api-key: {{search-api-key}}
+
+{
+  "name": "{{remote-knowledge-source-name}}",
+  "kind": "remoteSharePoint",
+  "description": "Remote SharePoint knowledge source for the Foundry IQ SharePoint agent.",
+  "remoteSharePointParameters": {
+    "filterExpression": "{{remote-filter-expression}}",
+    "containerTypeId": null,
+    "resourceMetadata": [
+      "Author",
+      "Title",
+      "FileName",
+      "CreatedDate",
+      "ContentType",
+      "FileType"
+    ]
+  }
+}
+
+### Get remote SharePoint knowledge source definition
+GET {{search-url}}/knowledgesources('{{remote-knowledge-source-name}}')?api-version={{api-version}}
+Content-Type: application/json
+api-key: {{search-api-key}}
+
+### Optional: list knowledge bases
+GET {{search-url}}/knowledgebases?api-version={{api-version}}&$select=name
+Content-Type: application/json
+api-key: {{search-api-key}}
+
+### Optional: create or update a knowledge base that references both sources
+PUT {{search-url}}/knowledgebases('{{knowledge-base-name}}')?api-version={{api-version}}
+Content-Type: application/json
+Prefer: return=representation
+api-key: {{search-api-key}}
+
+{
+  "name": "{{knowledge-base-name}}",
+  "description": "Knowledge base for SharePoint indexed and remote retrieval.",
+  "retrievalInstructions": "Choose the indexed SharePoint source for broad document retrieval and the remote SharePoint source when freshness or per-user access is important.",
+  "answerInstructions": "Answer in Japanese and cite the document name or URL when available.",
+  "outputMode": "extractiveData",
+  "knowledgeSources": [
+    {
+      "name": "{{indexed-knowledge-source-name}}"
+    },
+    {
+      "name": "{{remote-knowledge-source-name}}"
+    }
+  ],
+  "models": [
+    {
+      "kind": "azureOpenAI",
+      "azureOpenAIParameters": {
+        "resourceUri": "{{aoai-resource-uri}}",
+        "deploymentId": "{{aoai-deployment-id}}",
+        "apiKey": "{{aoai-api-key}}",
+        "modelName": "{{aoai-model-name}}"
+      }
+    }
+  ],
+  "retrievalReasoningEffort": {
+    "kind": "medium"
+  }
+}
+
+### Optional: retrieve from the knowledge base
+POST {{search-url}}/knowledgebases('{{knowledge-base-name}}'):retrieve?api-version={{api-version}}
+Content-Type: application/json
+api-key: {{search-api-key}}
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "SharePoint内の最新の会議資料を教えてください。"
+    }
+  ]
+}
