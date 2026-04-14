@@ -3,3 +3,4 @@
 .env.sample
 .venv
 __pycache__/
+.gitignore

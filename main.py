@@ -16,7 +16,7 @@ from azure.ai.agentserver.agentframework import from_agent_framework
 from azure.identity.aio import DefaultAzureCredential
 from dotenv import load_dotenv
 
-from agent_sharepoint import SharePointSearchAgent
+from agents.sharepoint_agent import SharePointSearchAgent
 
 load_dotenv(override=True)
 

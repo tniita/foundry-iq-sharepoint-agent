@@ -26,7 +26,7 @@ from http import HTTPStatus
 from aiohttp import web
 from dotenv import load_dotenv
 
-from agent_sharepoint import SharePointSearchAgent
+from agents.sharepoint_agent import SharePointSearchAgent
 
 load_dotenv()
 

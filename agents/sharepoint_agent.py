@@ -18,7 +18,7 @@ from agent_framework.azure import AzureAIAgentClient, AzureAISearchContextProvid
 from azure.identity.aio import DefaultAzureCredential, OnBehalfOfCredential
 from dotenv import load_dotenv
 
-from sharepoint_context_provider import SharePointSearchContextProvider
+from providers.sharepoint_context_provider import SharePointSearchContextProvider
 
 load_dotenv()
 
@@ -139,19 +139,13 @@ class SharePointSearchAgent:
     ) -> AzureAISearchContextProvider:
         """Create the Azure AI Search context provider for the configured pattern."""
         credential = self._get_credential(user_assertion)
-        provider_cls = (
-            SharePointSearchContextProvider
-            if self.pattern == "remote"
-            else AzureAISearchContextProvider
-        )
-        provider_kwargs: dict[str, object] = {}
+        provider_kwargs: dict[str, object] = {
+            "query_source_authorization": user_assertion,
+        }
         if self.pattern == "remote":
-            provider_kwargs = {
-                "query_source_authorization": user_assertion,
-                "remote_knowledge_source_name": self.remote_knowledge_source_name,
-                "remote_filter_expression_add_on": self.remote_filter_expression_add_on,
-            }
-        return provider_cls(
+            provider_kwargs["remote_knowledge_source_name"] = self.remote_knowledge_source_name
+            provider_kwargs["remote_filter_expression_add_on"] = self.remote_filter_expression_add_on
+        return SharePointSearchContextProvider(
             source_id=f"sharepoint_{self.pattern}_provider",
             endpoint=self.search_endpoint,
             api_key=self.search_api_key if not credential else None,

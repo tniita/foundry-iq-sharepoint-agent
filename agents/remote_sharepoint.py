@@ -30,7 +30,7 @@ from agent_framework.azure import AzureAIAgentClient
 from azure.identity.aio import DefaultAzureCredential, OnBehalfOfCredential
 from dotenv import load_dotenv
 
-from sharepoint_context_provider import SharePointSearchContextProvider
+from providers.sharepoint_context_provider import SharePointSearchContextProvider
 
 load_dotenv()
 
